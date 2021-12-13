@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import pandas as pd
@@ -11,17 +11,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import matplotlib.pyplot as plt 
 plt.rc("font", size=14)
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.preprocessing import OneHotEncoder
 from datetime import timedelta, datetime
-from scipy.sparse import coo_matrix, hstack
+from scipy.sparse import coo_matrix, hstack, csr_matrix
 
 
-# In[ ]:
-
-
-
-
-
-# In[3]:
+# In[2]:
 
 
 print("="*100)
@@ -33,7 +28,7 @@ print("Import Complete")
 print("="*100)
 
 
-# In[4]:
+# In[3]:
 
 
 # Drop invalid row that are missing vin or list_price
@@ -51,7 +46,7 @@ df_valid.sort_values(["vin", "listing_date_begin"]).head(100)
 print("="*100)
 
 
-# In[17]:
+# In[4]:
 
 
 # Missingness
@@ -62,7 +57,7 @@ print(df_valid.isna().sum()/row_total)
 print("="*100)
 
 
-# In[18]:
+# In[5]:
 
 
 # Calculate data values for imputation
@@ -103,7 +98,7 @@ print(imputation_dict)
 print("="*100)  
 
 
-# In[ ]:
+# In[6]:
 
 
 print("="*100)
@@ -120,17 +115,17 @@ df_test = df_valid[df_valid['vin'].isin(test_vin)]
 print("test row percentage: {}%".format(round(100*(len(df_test)/len(df_valid)))))
 
 # Check takes long to run
-vin_duplicated = []
-print("Checking uniqueness of train and test vins")
-for i in df_test.index:
-    if df_test.loc[i, 'vin'] in list(df_train['vin']):
-        vin_duplicated.append(df_test.loc[i, 'vin'])
+# vin_duplicated = []
+# print("Checking uniqueness of train and test vins")
+# for i in df_test.index:
+#     if df_test.loc[i, 'vin'] in list(df_train['vin']):
+#         vin_duplicated.append(df_test.loc[i, 'vin'])
 
-assert len(vin_duplicated)==0, "Vin number in test and train"
+# assert len(vin_duplicated)==0, "Vin number in test and train"
 print("="*100)
 
 
-# In[4]:
+# In[7]:
 
 
 # Group by observations to summarize 
@@ -200,7 +195,7 @@ df_tidy_test = summarize_obs(df_test)
 print("="*100)
 
 
-# In[5]:
+# In[8]:
 
 
 # Impute missing values
@@ -224,7 +219,7 @@ df_impute_test = impute_variables(df_tidy_test)
 print("="*100)
 
 
-# In[6]:
+# In[9]:
 
 
 # Date Handling
@@ -253,7 +248,7 @@ df_date_test = handle_date(df_impute_test)
 print("="*100)
 
 
-# In[7]:
+# In[10]:
 
 
 # Split features with where it makes sense
@@ -266,7 +261,7 @@ df_date_test['seller_city'] = df_date_test.seller_city.str.split(",").str[0]
 print("="*100)
 
 
-# In[8]:
+# In[11]:
 
 
 # Handling Outliers
@@ -297,7 +292,7 @@ df_outlier_test = handle_outliers(df_date_test)
 print("="*100)
 
 
-# In[9]:
+# In[12]:
 
 
 # Normalization
@@ -322,7 +317,7 @@ df_norm_test = normalize(df_outlier_test)
 print("="*100)
 
 
-# In[10]:
+# In[13]:
 
 
 # One hot encoding
@@ -337,40 +332,46 @@ def one_hot_encode(train,test,option):
     test: test data used for in transformation
     option: 'test' or 'train' for resulting output
     '''
-    vectorizer = CountVectorizer(token_pattern='.+')
-    vectorizer_year = vectorizer.fit(train['year'].astype('str').values) 
-    vectorizer_make = vectorizer.fit(train['make'].values)
-    vectorizer_model = vectorizer.fit(train['model'].values)
-    vectorizer_body_style = vectorizer.fit(train['body_style'].values)
-    vectorizer_seller_city = vectorizer.fit(train['seller_city'].astype(str).values) 
-    vectorizer_seller_state = vectorizer.fit(train['seller_state'].astype(str).values)
-    vectorizer_seller_type = vectorizer.fit(train['seller_type'].astype(str).values)
+    vectorizer = OneHotEncoder(handle_unknown='ignore')
+    vectorizer_total = vectorizer.fit(train[['year', 'make', 'model', 'body_style', 'seller_city',
+                                            'seller_state', 'seller_type', 
+                                            'listing_year', 'listing_month']])
+#     vectorizer_year = vectorizer.fit(train['year'].astype('str').to_numpy().reshape(-1, 1)) 
+#     vectorizer_make = vectorizer.fit(train['make'].values)
+#     vectorizer_model = vectorizer.fit(train['model'].values)
+#     vectorizer_body_style = vectorizer.fit(train['body_style'].values)
+#     vectorizer_seller_city = vectorizer.fit(train['seller_city'].astype(str).values) 
+#     vectorizer_seller_state = vectorizer.fit(train['seller_state'].astype(str).values)
+#     vectorizer_seller_type = vectorizer.fit(train['seller_type'].astype(str).values)
 #     vectorizer_listing_year = vectorizer.fit(train['listing_year'].astype(str).values) 
 #     vectorizer_listing_month = vectorizer.fit(train['listing_month'].astype(str).values) 
 
     if option == 'test':
         print("{} one hot encoded column shapes".format(option))
-        # vectorizing the 'year' column
-        column_year = vectorizer.transform(test['year'].astype('str').values) 
-        print(column_year.shape)
-        #vectorizing the 'make' column
-        column_make = vectorizer.transform(test['make'].values)
-        print(column_make.shape)
-        #vectorizing 'model' column
-        column_model = vectorizer.transform(test['model'].values)
-        print(column_model.shape)
-        #vectorizing 'body_style' column
-        column_body_style = vectorizer.transform(test['body_style'].values)
-        print(column_body_style.shape)
-        #vectorizing 'seller_city' column
-        colummn_seller_city = vectorizer.transform(test['seller_city'].values)
-        print(colummn_seller_city.shape)
-        #vectorizing 'seller_state' column
-        colummn_seller_state = vectorizer.transform(test['seller_state'].values)
-        print(colummn_seller_state.shape)
-        #vectorizing 'seller_type' column
-        colummn_seller_type = vectorizer.transform(test['seller_type'].values)
-        print(colummn_seller_type.shape)
+        return_matrix = vectorizer.transform(test[['year', 'make', 'model', 'body_style', 'seller_city',
+                                              'seller_state', 'seller_type', 
+                                            'listing_year', 'listing_month']])
+#         # vectorizing the 'year' column
+#         column_year = vectorizer.transform(test['year'].astype('str').to_numpy().reshape(-1, 1)) 
+#         print(column_year.shape)
+#         #vectorizing the 'make' column
+#         column_make = vectorizer.transform(test['make'].values)
+#         print(column_make.shape)
+#         #vectorizing 'model' column
+#         column_model = vectorizer.transform(test['model'].values)
+#         print(column_model.shape)
+#         #vectorizing 'body_style' column
+#         column_body_style = vectorizer.transform(test['body_style'].values)
+#         print(column_body_style.shape)
+#         #vectorizing 'seller_city' column
+#         colummn_seller_city = vectorizer.transform(test['seller_city'].values)
+#         print(colummn_seller_city.shape)
+#         #vectorizing 'seller_state' column
+#         colummn_seller_state = vectorizer.transform(test['seller_state'].values)
+#         print(colummn_seller_state.shape)
+#         #vectorizing 'seller_type' column
+#         colummn_seller_type = vectorizer.transform(test['seller_type'].values)
+#         print(colummn_seller_type.shape)
 #         #vectorizing 'listing_year' column
 #         colummn_listing_year = vectorizer.transform(test['listing_year'].values)  
 #         print(colummn_listing_year.shape)
@@ -379,27 +380,29 @@ def one_hot_encode(train,test,option):
 #         print(colummn_listing_month.shape)
     elif option == 'train':
         print("{} one hot encoded column shapes".format(option))
-        # vectorizing the 'year' column
-        column_year = vectorizer.transform(train['year'].astype('str').values) 
-        print(column_year.shape)
-        #vectorizing the 'make' column
-        column_make = vectorizer.transform(train['make'].values)
-        print(column_make.shape)
-        #vectorizing 'model' column
-        column_model = vectorizer.transform(train['model'].values)
-        print(column_model.shape)
-        #vectorizing 'body_style' column
-        column_body_style = vectorizer.transform(train['body_style'].values)
-        print(column_body_style.shape)
-        #vectorizing 'seller_city' column
-        colummn_seller_city = vectorizer.transform(train['seller_city'].values)
-        print(colummn_seller_city.shape)
-        #vectorizing 'seller_state' column
-        colummn_seller_state = vectorizer.transform(train['seller_state'].values)
-        print(colummn_seller_state.shape)
-        #vectorizing 'seller_type' column
-        colummn_seller_type = vectorizer.transform(train['seller_type'].values)
-        print(colummn_seller_type.shape)
+        return_matrix = vectorizer.transform(train[['year', 'make', 'model', 'body_style', 'seller_state', 'seller_type', 
+                                            'seller_city', 'listing_year', 'listing_month']])
+#         # vectorizing the 'year' column
+#         column_year = vectorizer.transform(train['year'].astype('str').to_numpy().reshape(-1, 1)) 
+#         print(column_year.shape)
+#         #vectorizing the 'make' column
+#         column_make = vectorizer.transform(train['make'].values)
+#         print(column_make.shape)
+#         #vectorizing 'model' column
+#         column_model = vectorizer.transform(train['model'].values)
+#         print(column_model.shape)
+#         #vectorizing 'body_style' column
+#         column_body_style = vectorizer.transform(train['body_style'].values)
+#         print(column_body_style.shape)
+#         #vectorizing 'seller_city' column
+#         colummn_seller_city = vectorizer.transform(train['seller_city'].values)
+#         print(colummn_seller_city.shape)
+#         #vectorizing 'seller_state' column
+#         colummn_seller_state = vectorizer.transform(train['seller_state'].values)
+#         print(colummn_seller_state.shape)
+#         #vectorizing 'seller_type' column
+#         colummn_seller_type = vectorizer.transform(train['seller_type'].values)
+#         print(colummn_seller_type.shape)
 #         #vectorizing 'listing_year' column
 #         colummn_listing_year = vectorizer.transform(train['listing_year'].values)  
 #         print(colummn_listing_year.shape)
@@ -409,10 +412,11 @@ def one_hot_encode(train,test,option):
     else:
         print("Need input option to specify return of test or train one hot encoded columns")
     
-    return_matrix = hstack((column_year,column_make,column_model,column_body_style,
-                         colummn_seller_city,colummn_seller_state,colummn_seller_type,
-#                          colummn_listing_year,colummn_listing_month
-                             )).tocsr()
+#     return_matrix = hstack((column_year,
+# #                             column_make,column_model,column_body_style,
+# #                          colummn_seller_city,colummn_seller_state,colummn_seller_type,
+# #                          colummn_listing_year,colummn_listing_month
+#                              )).tocsr()
     print("{} one hot encoded matrix shape".format(option))
     print(return_matrix.shape)
     return return_matrix
@@ -424,13 +428,13 @@ onehot_test = one_hot_encode(df_norm, df_norm_test, option='test')
 print("="*100)
 
 
-# In[11]:
+# In[14]:
 
 
 # Make, model, body_style price
 
 
-# In[12]:
+# In[15]:
 
 
 # Text feature extraction
@@ -454,7 +458,7 @@ print("="*100)
 # # test_exterior_color_tfidf = vectorizer.transform(test['exterior_color'])
 
 
-# In[13]:
+# In[16]:
 
 
 # Confirm no missing values 
@@ -488,7 +492,7 @@ print("Evaluation complete")
 print("="*100)
 
 
-# In[14]:
+# In[17]:
 
 
 # Confirm no categorical variables
@@ -503,7 +507,7 @@ print("Test \n {}".format(df_norm_test.dtypes))
 print("="*100)
 
 
-# In[15]:
+# In[18]:
 
 
 print("="*100)
@@ -514,6 +518,7 @@ X_train = hstack((df_norm.drop(columns=["vin","listing_date_begin", "trim", "tra
                                         "model", "body_style", "seller_city", "seller_state", "seller_type", 
                                         "listing_year", "listing_month"]).to_numpy(), onehot))
 print("Train feature matrix shape: \n {}".format(X_train.shape))
+pd.DataFrame(data=csr_matrix.todense(X_train)).to_csv('{}\\X_train.csv'.format(directory), header=False)
 
 X_test = hstack((df_norm_test.drop(columns=["vin","listing_date_begin", "trim", "transmission", "exterior_color", 
                                        "list_price", "mileage", "accident_count", 
@@ -521,22 +526,25 @@ X_test = hstack((df_norm_test.drop(columns=["vin","listing_date_begin", "trim", 
                                         "model", "body_style", "seller_city", "seller_state", "seller_type", 
                                         "listing_year", "listing_month"]).to_numpy(), onehot_test))
 print("Test feature matrix shape: \n {}".format(X_test.shape))
+pd.DataFrame(data=csr_matrix.todense(X_test)).to_csv('{}\\X_test.csv'.format(directory), header=False)
 print("="*100)
 
 
-# In[16]:
+# In[19]:
 
 
 print("="*100)
 print("Train and test outcome")
 y_train = df_norm.list_price.to_numpy()
+pd.DataFrame(data=y_train).to_csv('{}\\y_train.csv'.format(directory), header=False)
 print("Train outcome matrix shape: \n {}".format(y_train.shape))
 y_test = df_norm_test.list_price.to_numpy()
+pd.DataFrame(data=y_test).to_csv('{}\\y_test.csv'.format(directory), header=False)
 print("Test outcome matrix shape: \n {}".format(y_test.shape))
 print("="*100)
 
 
-# In[17]:
+# In[20]:
 
 
 import pandas as pd
@@ -548,21 +556,21 @@ import numpy as np
 from joblib import parallel_backend
 
 
-# In[18]:
+# In[33]:
 
 
 # Ridge Regression Train
 print("="*100)
 print("Bulding Model")
 with parallel_backend('threading', n_jobs=8):
-    ridge = rcv(cv=5).fit(X_train, y_train)
+    ridge = rcv(alphas=(0.0001, 0.0005, 0.001, 0.01, 0.1, 1.0),cv=5).fit(X_train, y_train)
     ridge_params = ridge.get_params()
     r_squared = ridge.score(X_train, y_train)
     y_train_pred = ridge.predict(X_train)
     rmse_train = mse(y_train, y_train_pred, squared = False)
 
 
-# In[19]:
+# In[34]:
 
 
 # Ridge Regression Test
@@ -572,12 +580,13 @@ with parallel_backend('threading', n_jobs=8):
     rmse_test = mse(y_test, y_test_pred, squared = False)
 
 
-# In[20]:
+# In[36]:
 
 
 # Model results
 print("Model Results")
 print("Ridge Regression Parameters: {}".format(ridge_params))
+print("Ridge Regression alpha: {}".format(ridge.alpha_))
 print("Ridge Train R^2: {}".format(r_squared))
 print("Ridge Train RMSE: {}".format(rmse_train))
 print("Ridge Test RMSE: {}".format(rmse_test))
