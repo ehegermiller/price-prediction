@@ -556,21 +556,21 @@ import numpy as np
 from joblib import parallel_backend
 
 
-# In[33]:
+# In[21]:
 
 
 # Ridge Regression Train
 print("="*100)
 print("Bulding Model")
 with parallel_backend('threading', n_jobs=8):
-    ridge = rcv(alphas=(0.0001, 0.0005, 0.001, 0.01, 0.1, 1.0),cv=5).fit(X_train, y_train)
+    ridge = rcv(alphas=(0.0001, 0.0005, 0.001, 0.01, 0.1, 1.0),cv=5,scoring='neg_root_mean_squared_error').fit(X_train, y_train)
     ridge_params = ridge.get_params()
     r_squared = ridge.score(X_train, y_train)
     y_train_pred = ridge.predict(X_train)
     rmse_train = mse(y_train, y_train_pred, squared = False)
 
 
-# In[34]:
+# In[22]:
 
 
 # Ridge Regression Test
@@ -580,7 +580,7 @@ with parallel_backend('threading', n_jobs=8):
     rmse_test = mse(y_test, y_test_pred, squared = False)
 
 
-# In[36]:
+# In[23]:
 
 
 # Model results
